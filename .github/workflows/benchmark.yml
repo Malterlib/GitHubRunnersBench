@@ -1,0 +1,164 @@
+name: Benchmark GitHub Runners
+
+on:
+  workflow_dispatch:
+    inputs:
+      linux_x64:
+        description: Linux x64
+        required: true
+        type: boolean
+        default: true
+      linux_arm64:
+        description: Linux arm64
+        required: true
+        type: boolean
+        default: true
+      linux_x86:
+        description: Linux x86 target in Debian linux/386 container
+        required: true
+        type: boolean
+        default: true
+      macos_arm64:
+        description: macOS arm64
+        required: true
+        type: boolean
+        default: true
+      macos_x64:
+        description: macOS x64
+        required: true
+        type: boolean
+        default: true
+      windows_x64:
+        description: Windows x64
+        required: true
+        type: boolean
+        default: true
+      windows_arm64:
+        description: Windows arm64
+        required: true
+        type: boolean
+        default: true
+      run_geekbench:
+        description: Run Geekbench CPU benchmark
+        required: true
+        type: boolean
+        default: true
+      run_disk:
+        description: Run fio disk bandwidth and 4 KiB IOPS benchmark
+        required: true
+        type: boolean
+        default: true
+      disk_size_mb:
+        description: fio test file size in MiB
+        required: true
+        type: number
+        default: 1024
+      disk_runtime_seconds:
+        description: fio random 4 KiB test runtime per read/write phase
+        required: true
+        type: number
+        default: 15
+      geekbench_version:
+        description: Geekbench version to download
+        required: true
+        type: string
+        default: 6.7.1
+
+permissions:
+  contents: write
+
+jobs:
+  select:
+    name: Select Runners
+    runs-on: ubuntu-22.04
+    outputs:
+      matrix: ${{ steps.matrix.outputs.matrix }}
+    steps:
+    - uses: actions/checkout@v6
+    - name: Build matrix
+      id: matrix
+      shell: bash
+      env:
+        INPUT_LINUX_X64: ${{ inputs.linux_x64 }}
+        INPUT_LINUX_ARM64: ${{ inputs.linux_arm64 }}
+        INPUT_LINUX_X86: ${{ inputs.linux_x86 }}
+        INPUT_MACOS_ARM64: ${{ inputs.macos_arm64 }}
+        INPUT_MACOS_X64: ${{ inputs.macos_x64 }}
+        INPUT_WINDOWS_X64: ${{ inputs.windows_x64 }}
+        INPUT_WINDOWS_ARM64: ${{ inputs.windows_arm64 }}
+      run: python3 scripts/build_matrix.py
+
+  benchmark:
+    name: ${{ matrix.display }}
+    needs: select
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.select.outputs.matrix) }}
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 90
+    env:
+      BENCHMARK_ID: ${{ matrix.id }}
+      BENCHMARK_DISPLAY: ${{ matrix.display }}
+      BENCHMARK_PLATFORM: ${{ matrix.platform }}
+      BENCHMARK_ARCH: ${{ matrix.arch }}
+      BENCHMARK_RUNNER: ${{ matrix.runner }}
+      BENCHMARK_BUILD_IN_CONTAINER: ${{ matrix.build_in_container }}
+      BENCHMARK_CONTAINER_IMAGE: ${{ matrix.container_image }}
+      BENCHMARK_CONTAINER_PLATFORM: ${{ matrix.container_platform }}
+      BENCHMARK_RUN_GEEKBENCH: ${{ inputs.run_geekbench }}
+      BENCHMARK_RUN_DISK: ${{ inputs.run_disk }}
+      BENCHMARK_DISK_SIZE_MB: ${{ inputs.disk_size_mb }}
+      BENCHMARK_DISK_RUNTIME_SECONDS: ${{ inputs.disk_runtime_seconds }}
+      GEEKBENCH_VERSION: ${{ inputs.geekbench_version }}
+    steps:
+    - uses: actions/checkout@v6
+    - uses: actions/setup-python@v6
+      with:
+        python-version: "3.12"
+    - name: Run benchmarks
+      id: run_benchmark
+      continue-on-error: true
+      shell: pwsh
+      run: python scripts/runner_benchmark.py
+    - uses: actions/upload-artifact@v7
+      if: ${{ always() }}
+      with:
+        name: github-runner-benchmark-${{ matrix.id }}
+        path: artifacts/
+        if-no-files-found: error
+        retention-days: 30
+    - name: Fail on benchmark error
+      if: ${{ steps.run_benchmark.outcome == 'failure' }}
+      shell: bash
+      run: exit 1
+
+  publish_results:
+    name: Publish README Results
+    needs: benchmark
+    if: ${{ always() }}
+    runs-on: ubuntu-22.04
+    steps:
+    - uses: actions/checkout@v6
+      with:
+        ref: master
+    - uses: actions/setup-python@v6
+      with:
+        python-version: "3.12"
+    - uses: actions/download-artifact@v8
+      with:
+        path: downloaded-artifacts
+    - name: Update README benchmark table
+      shell: bash
+      run: python3 scripts/update_readme_results.py downloaded-artifacts README.md
+    - name: Commit and push README update
+      shell: bash
+      run: |
+        git config user.name "github-actions[bot]"
+        git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+        if git diff --quiet -- README.md; then
+          echo "README.md benchmark table is already current."
+          exit 0
+        fi
+        git add README.md
+        git commit -m "Update GitHub runner benchmark results"
+        git push origin HEAD:master
