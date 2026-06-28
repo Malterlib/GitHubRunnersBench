@@ -16,11 +16,42 @@ from urllib.request import Request, urlopen
 
 START_MARKER = "<!-- BENCHMARK_RESULTS_START -->"
 END_MARKER = "<!-- BENCHMARK_RESULTS_END -->"
-GEEKBENCH_HEADERS = {
-    "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/126 Safari/537.36",
-    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-    "Accept-Language": "en-US,en;q=0.9",
-}
+GEEKBENCH_HEADER_PROFILES = [
+    {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36",
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+        "Accept-Language": "en-US,en;q=0.9",
+        "Sec-Fetch-Dest": "document",
+        "Sec-Fetch-Mode": "navigate",
+        "Sec-Fetch-Site": "none",
+        "Upgrade-Insecure-Requests": "1",
+    },
+    {
+        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 14_6) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.6 Safari/605.1.15",
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+        "Accept-Language": "en-US,en;q=0.9",
+    },
+    {
+        "User-Agent": "Mozilla/5.0 (X11; Linux x86_64; rv:127.0) Gecko/20100101 Firefox/127.0",
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+        "Accept-Language": "en-US,en;q=0.7",
+        "Upgrade-Insecure-Requests": "1",
+    },
+    {
+        "User-Agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 17_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.6 Mobile/15E148 Safari/604.1",
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+        "Accept-Language": "en-US,en;q=0.9",
+    },
+    {
+        "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36",
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+        "Accept-Language": "en-US,en;q=0.9",
+        "Sec-Fetch-Dest": "document",
+        "Sec-Fetch-Mode": "navigate",
+        "Sec-Fetch-Site": "none",
+        "Upgrade-Insecure-Requests": "1",
+    },
+]
 GEEKBENCH_SCORE_FETCH_ATTEMPTS = 5
 GEEKBENCH_SCORE_FETCH_BASE_DELAY_SECONDS = 3
 GEEKBENCH_SCORE_FETCH_MAX_DELAY_SECONDS = 30
@@ -96,12 +127,16 @@ def geekbench_score_fetch_delay(attempt: int, headers: Any = None) -> float:
     return min(float(delay), GEEKBENCH_SCORE_FETCH_MAX_DELAY_SECONDS)
 
 
+def geekbench_headers(attempt: int) -> dict[str, str]:
+    return dict(GEEKBENCH_HEADER_PROFILES[(attempt - 1) % len(GEEKBENCH_HEADER_PROFILES)])
+
+
 def fetch_geekbench_scores(url: str) -> tuple[dict[str, int], str | None]:
     error = None
     headers = None
     for attempt in range(1, GEEKBENCH_SCORE_FETCH_ATTEMPTS + 1):
         try:
-            with urlopen(Request(url, headers=GEEKBENCH_HEADERS), timeout=30) as response:
+            with urlopen(Request(url, headers=geekbench_headers(attempt)), timeout=30) as response:
                 html = response.read().decode("utf-8", errors="replace")
             scores = parse_geekbench_scores(html)
             if scores:
