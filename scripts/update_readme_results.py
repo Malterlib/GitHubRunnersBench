@@ -2,14 +2,28 @@
 from __future__ import annotations
 
 import json
+import re
 import sys
+import time
 from datetime import datetime, timezone
+from email.utils import parsedate_to_datetime
+from html import unescape
 from pathlib import Path
 from typing import Any
+from urllib.error import HTTPError, URLError
+from urllib.request import Request, urlopen
 
 
 START_MARKER = "<!-- BENCHMARK_RESULTS_START -->"
 END_MARKER = "<!-- BENCHMARK_RESULTS_END -->"
+GEEKBENCH_HEADERS = {
+    "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/126 Safari/537.36",
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+    "Accept-Language": "en-US,en;q=0.9",
+}
+GEEKBENCH_SCORE_FETCH_ATTEMPTS = 5
+GEEKBENCH_SCORE_FETCH_BASE_DELAY_SECONDS = 3
+GEEKBENCH_SCORE_FETCH_MAX_DELAY_SECONDS = 30
 
 
 def load_results(root: Path) -> list[dict[str, Any]]:
@@ -40,6 +54,91 @@ def number(value: Any, precision: int = 0) -> str:
     if precision == 0:
         return str(int(round(numeric)))
     return f"{numeric:.{precision}f}"
+
+
+def parse_geekbench_scores(html: str) -> dict[str, int]:
+    scores: dict[str, int] = {}
+    pattern = re.compile(
+        r"<div\s+class=['\"]score['\"]>\s*([0-9,]+)\s*</div>\s*"
+        r"<div\s+class=['\"]note['\"]>\s*([^<]+?)\s*</div>",
+        re.IGNORECASE | re.DOTALL,
+    )
+    for match in pattern.finditer(html):
+        value = int(match.group(1).replace(",", ""))
+        note = unescape(match.group(2)).strip().lower()
+        if note == "single-core score":
+            scores["single_core_score"] = value
+        elif note == "multi-core score":
+            scores["multi_core_score"] = value
+    return scores
+
+
+def retry_after_seconds(headers: Any) -> float | None:
+    raw = headers.get("Retry-After") if headers else None
+    if not raw:
+        return None
+    try:
+        return max(0.0, float(raw))
+    except ValueError:
+        pass
+    try:
+        retry_at = parsedate_to_datetime(raw)
+        return max(0.0, retry_at.timestamp() - time.time())
+    except (TypeError, ValueError, OSError):
+        return None
+
+
+def geekbench_score_fetch_delay(attempt: int, headers: Any = None) -> float:
+    retry_after = retry_after_seconds(headers)
+    if retry_after is not None:
+        return min(retry_after, GEEKBENCH_SCORE_FETCH_MAX_DELAY_SECONDS)
+    delay = GEEKBENCH_SCORE_FETCH_BASE_DELAY_SECONDS * (2 ** (attempt - 1))
+    return min(float(delay), GEEKBENCH_SCORE_FETCH_MAX_DELAY_SECONDS)
+
+
+def fetch_geekbench_scores(url: str) -> tuple[dict[str, int], str | None]:
+    error = None
+    headers = None
+    for attempt in range(1, GEEKBENCH_SCORE_FETCH_ATTEMPTS + 1):
+        try:
+            with urlopen(Request(url, headers=GEEKBENCH_HEADERS), timeout=30) as response:
+                html = response.read().decode("utf-8", errors="replace")
+            scores = parse_geekbench_scores(html)
+            if scores:
+                return scores, None
+            return {}, "score blocks not found"
+        except HTTPError as exc:
+            error = f"HTTP {exc.code}"
+            headers = exc.headers
+        except (OSError, URLError) as exc:
+            error = str(exc)
+            headers = None
+        if attempt < GEEKBENCH_SCORE_FETCH_ATTEMPTS:
+            delay = geekbench_score_fetch_delay(attempt, headers)
+            print(f"Geekbench score fetch failed for {url} ({error}); retrying in {delay:.1f}s.", file=sys.stderr)
+            time.sleep(delay)
+    return {}, error
+
+
+def enrich_geekbench_scores(results: list[dict[str, Any]]) -> None:
+    cache: dict[str, tuple[dict[str, int], str | None]] = {}
+    for result in results:
+        geekbench = result.get("geekbench", {})
+        if geekbench.get("status") != "success":
+            continue
+        if geekbench.get("single_core_score") and geekbench.get("multi_core_score"):
+            continue
+        url = geekbench.get("browser_url")
+        if not url:
+            continue
+        if url not in cache:
+            cache[url] = fetch_geekbench_scores(url)
+        scores, error = cache[url]
+        geekbench.update(scores)
+        if scores:
+            geekbench["score_source"] = "geekbench_browser"
+        elif error:
+            geekbench["score_fetch_error"] = error
 
 
 def disk_metric(result: dict[str, Any], test: str, key: str, precision: int = 0) -> str:
@@ -82,6 +181,7 @@ def sort_key(result: dict[str, Any]) -> tuple[str, str]:
 
 
 def build_table(results: list[dict[str, Any]]) -> str:
+    enrich_geekbench_scores(results)
     updated = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
     lines = [
         START_MARKER,
