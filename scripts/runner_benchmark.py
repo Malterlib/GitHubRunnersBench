@@ -222,6 +222,46 @@ def download_file(url: str, destination: Path) -> None:
                     next_report += 64 * 1024 * 1024
 
 
+def assert_zip_path(root: Path, member_name: str) -> Path:
+    target = root / member_name
+    resolved_root = root.resolve()
+    resolved_target = target.resolve(strict=False)
+    if resolved_root != resolved_target and resolved_root not in resolved_target.parents:
+        raise RuntimeError(f"Refusing to extract ZIP member outside destination: {member_name}")
+    return target
+
+
+def extract_zip_preserving_metadata(archive: Path, destination: Path) -> None:
+    with zipfile.ZipFile(archive) as zip_handle:
+        for info in zip_handle.infolist():
+            target = assert_zip_path(destination, info.filename)
+            mode = info.external_attr >> 16
+            file_type = stat.S_IFMT(mode)
+            permissions = mode & 0o777
+
+            if info.is_dir():
+                target.mkdir(parents=True, exist_ok=True)
+                if permissions:
+                    target.chmod(permissions)
+                continue
+
+            target.parent.mkdir(parents=True, exist_ok=True)
+            if target.exists() or target.is_symlink():
+                if target.is_dir() and not target.is_symlink():
+                    shutil.rmtree(target)
+                else:
+                    target.unlink()
+
+            if file_type == stat.S_IFLNK:
+                os.symlink(zip_handle.read(info).decode("utf-8"), target)
+                continue
+
+            with zip_handle.open(info) as source, target.open("wb") as output:
+                shutil.copyfileobj(source, output)
+            if permissions:
+                target.chmod(permissions)
+
+
 def geekbench_download(version: str) -> tuple[str, str, str, bool]:
     system = platform.system()
     machine = platform.machine().lower()
@@ -288,8 +328,7 @@ def install_geekbench(version: str) -> tuple[Path, bool]:
     extract_root.mkdir(parents=True)
 
     if kind == "mac":
-        with zipfile.ZipFile(archive) as zip_handle:
-            zip_handle.extractall(extract_root)
+        extract_zip_preserving_metadata(archive, extract_root)
         executable = extract_root / "Geekbench 6.app" / "Contents" / "Resources" / "geekbench6"
     else:
         with tarfile.open(archive) as tar_handle:
@@ -333,9 +372,10 @@ def run_geekbench(config: dict[str, Any]) -> dict[str, Any]:
         executable, preview = install_geekbench(config["geekbench_version"])
         command = [executable, "--cpu"]
         log("Running Geekbench CPU benchmark.")
-        completed = run_command(command, timeout=3600, quiet=True)
-        print(completed.stdout)
-        parsed = parse_geekbench_output(completed.stdout)
+        completed = run_command(command, timeout=3600, cwd=executable.parent, quiet=True)
+        output = completed.stdout or ""
+        print(output)
+        parsed = parse_geekbench_output(output)
         result: dict[str, Any] = {
             "status": "success" if completed.returncode == 0 else "failed",
             "return_code": completed.returncode,
@@ -343,6 +383,8 @@ def run_geekbench(config: dict[str, Any]) -> dict[str, Any]:
             "preview_build": preview,
             **parsed,
         }
+        if completed.returncode != 0:
+            result["output_tail"] = "\n".join(output.splitlines()[-80:])
         if completed.returncode != 0 and (parsed["single_core_score"] or parsed["multi_core_score"]):
             result["status"] = "failed_after_scores"
         return result
