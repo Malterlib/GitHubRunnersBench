@@ -454,6 +454,20 @@ def fio_metric(job: dict[str, Any], op: str) -> dict[str, Any]:
     }
 
 
+def parse_fio_json(output: str) -> dict[str, Any]:
+    decoder = json.JSONDecoder()
+    for index, char in enumerate(output):
+        if char != "{":
+            continue
+        try:
+            value, _ = decoder.raw_decode(output[index:])
+        except json.JSONDecodeError:
+            continue
+        if isinstance(value, dict) and "jobs" in value:
+            return value
+    raise json.JSONDecodeError("no fio JSON object found", output, 0)
+
+
 def run_fio_once(
     fio: Path,
     *,
@@ -465,6 +479,8 @@ def run_fio_once(
     runtime_seconds: int | None,
     direct: bool,
 ) -> dict[str, Any]:
+    windows = platform.system() == "Windows"
+    ioengine = "windowsaio" if windows else "sync"
     command: list[str | os.PathLike[str]] = [
         fio,
         f"--name={name}",
@@ -472,21 +488,26 @@ def run_fio_once(
         f"--rw={rw}",
         f"--bs={bs}",
         f"--size={size_mb}m",
-        "--ioengine=sync",
+        f"--ioengine={ioengine}",
         "--numjobs=1",
         "--group_reporting=1",
         "--output-format=json",
         f"--direct={1 if direct else 0}",
     ]
+    if windows:
+        command.extend(["--iodepth=1", "--thread=1"])
     if runtime_seconds is not None:
         command.extend(["--time_based=1", f"--runtime={runtime_seconds}"])
     completed = run_command(command, timeout=(runtime_seconds or 300) + 600, quiet=True)
+    output = completed.stdout or ""
     if completed.returncode != 0:
-        raise RuntimeError(f"fio {name} failed with direct={direct}")
+        tail = "\n".join(output.splitlines()[-20:])
+        raise RuntimeError(f"fio {name} failed with direct={direct}: {tail}")
     try:
-        raw = json.loads(completed.stdout)
+        raw = parse_fio_json(output)
     except json.JSONDecodeError as exc:
-        raise RuntimeError(f"fio {name} did not return JSON: {exc}") from exc
+        tail = "\n".join(output.splitlines()[-40:])
+        raise RuntimeError(f"fio {name} did not return JSON: {exc}; output tail: {tail}") from exc
     op = "read" if "read" in rw else "write"
     job = raw["jobs"][0]
     return {

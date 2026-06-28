@@ -60,6 +60,13 @@ def geekbench_score(result: dict[str, Any], key: str) -> str:
     return ""
 
 
+def geekbench_url(result: dict[str, Any]) -> str:
+    url = result.get("geekbench", {}).get("browser_url")
+    if not url:
+        return ""
+    return f"[result]({text(url)})"
+
+
 def host_description(result: dict[str, Any]) -> str:
     system = result.get("system", {})
     machine = system.get("machine") or ""
@@ -88,8 +95,8 @@ def build_table(results: list[dict[str, Any]]) -> str:
 
     lines.extend(
         [
-            "| Target | Runner | Host | CPUs | Geekbench single | Geekbench multi | Seq read MiB/s | Seq write MiB/s | 4K read IOPS | 4K write IOPS |",
-            "| --- | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |",
+            "| Target | Runner | Host | CPUs | Geekbench single | Geekbench multi | Geekbench URL | Seq read MiB/s | Seq write MiB/s | 4K read IOPS | 4K write IOPS |",
+            "| --- | --- | --- | ---: | ---: | ---: | --- | ---: | ---: | ---: | ---: |",
         ]
     )
 
@@ -107,6 +114,7 @@ def build_table(results: list[dict[str, Any]]) -> str:
                     number(system.get("cpu_count")),
                     geekbench_score(result, "single_core_score"),
                     geekbench_score(result, "multi_core_score"),
+                    geekbench_url(result),
                     disk_metric(result, "sequential_read", "bandwidth_mib_per_second", 1),
                     disk_metric(result, "sequential_write", "bandwidth_mib_per_second", 1),
                     disk_metric(result, "random_read_4k", "iops"),
