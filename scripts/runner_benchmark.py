@@ -473,6 +473,18 @@ def fetch_geekbench_browser_scores(url: str) -> tuple[dict[str, int], str | None
     return {}, error
 
 
+def geekbench_known_issue(config: dict[str, Any], output: str, return_code: int) -> str | None:
+    if return_code == 0:
+        return None
+    if config["platform"] != "macOS" or config["arch"] != "x64":
+        return None
+    if "OSXSystem10gpu_models" not in output:
+        return None
+    if "NSInvalidArgumentException" not in output or "bytes" not in output:
+        return None
+    return "Geekbench crashes while collecting GPU model information on this macOS Intel VM runner."
+
+
 def run_geekbench(config: dict[str, Any]) -> dict[str, Any]:
     if config["arch"] == "x86":
         return {
@@ -503,6 +515,10 @@ def run_geekbench(config: dict[str, Any]) -> dict[str, Any]:
                 result["score_fetch_error"] = error
         if completed.returncode != 0:
             result["output_tail"] = "\n".join(output.splitlines()[-80:])
+            known_issue = geekbench_known_issue(config, output, completed.returncode)
+            if known_issue:
+                result["status"] = "known_issue"
+                result["reason"] = known_issue
         if completed.returncode != 0 and (parsed["single_core_score"] or parsed["multi_core_score"]):
             result["status"] = "failed_after_scores"
         return result

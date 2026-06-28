@@ -187,7 +187,7 @@ def geekbench_score(result: dict[str, Any], key: str) -> str:
     status = geekbench.get("status")
     if status == "success":
         return number(geekbench.get(key))
-    if status in {"skipped", "not_requested"}:
+    if status in {"skipped", "not_requested", "known_issue"}:
         return status
     if status:
         return f"{status}"
