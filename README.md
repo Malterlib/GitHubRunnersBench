@@ -34,5 +34,15 @@ Each matrix job uploads an artifact named `github-runner-benchmark-<target>` con
 ## Benchmark Results
 
 <!-- BENCHMARK_RESULTS_START -->
-No benchmark results have been published yet.
+Last updated: 2026-06-28 08:12:09 UTC
+
+| Target | Runner | Host | CPUs | Geekbench single | Geekbench multi | Seq read MiB/s | Seq write MiB/s | 4K read IOPS | 4K write IOPS |
+| --- | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| Linux arm64 | `ubuntu-22.04-arm` | Linux-6.8.0-1059-azure-aarch64-with-glibc2.35 / aarch64 | 4 |  |  | 441.4 | 159.4 | 7031 | 571 |
+| Linux x64 | `ubuntu-22.04` | Linux-6.8.0-1059-azure-x86_64-with-glibc2.35 / x86_64 | 4 |  |  | 439.1 | 440.2 | 10500 | 16399 |
+| Linux x86 | `ubuntu-22.04` | Linux-6.8.0-1059-azure-x86_64-with-glibc2.36 / x86_64 | 4 | skipped | skipped | 443.5 | 438.4 | 7588 | 12870 |
+| Windows arm64 | `windows-11-arm` | Windows-11-10.0.26200-SP0 / ARM64 | 4 |  |  |  |  |  |  |
+| Windows x64 | `windows-2022` | Windows-2022Server-10.0.20348-SP0 / AMD64 | 4 |  |  |  |  |  |  |
+| macOS arm64 | `macos-26` | macOS-26.4-arm64-arm-64bit / arm64 | 3 | failed | failed | 8533.3 | 3849.6 | 24796 | 21545 |
+| macOS x64 | `macos-26-intel` | macOS-26.4-x86_64-i386-64bit / x86_64 | 4 | failed | failed | 1706.7 | 1162.3 | 3590 | 4622 |
 <!-- BENCHMARK_RESULTS_END -->
