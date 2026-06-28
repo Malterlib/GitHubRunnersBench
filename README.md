@@ -34,15 +34,15 @@ Each matrix job uploads an artifact named `github-runner-benchmark-<target>` con
 ## Benchmark Results
 
 <!-- BENCHMARK_RESULTS_START -->
-Last updated: 2026-06-28 09:00:23 UTC
+Last updated: 2026-06-28 09:13:37 UTC
 
 | Target | Runner | Host | CPUs | Geekbench single | Geekbench multi | Geekbench URL | Seq read MiB/s | Seq write MiB/s | 4K read IOPS | 4K write IOPS |
 | --- | --- | --- | ---: | ---: | ---: | --- | ---: | ---: | ---: | ---: |
-| Linux arm64 | `ubuntu-22.04-arm` | Linux-6.8.0-1059-azure-aarch64-with-glibc2.35 / aarch64 | 4 | 1652 | 5507 | [result](https://browser.geekbench.com/v6/cpu/18511184) | 439.9 | 160.4 | 7771 | 687 |
-| Linux x64 | `ubuntu-22.04` | Linux-6.8.0-1059-azure-x86_64-with-glibc2.35 / x86_64 | 4 | 1594 | 3659 | [result](https://browser.geekbench.com/v6/cpu/18511189) | 439.9 | 441.4 | 7170 | 13041 |
-| Linux x86 | `ubuntu-22.04` | Linux-6.8.0-1059-azure-x86_64-with-glibc2.36 / x86_64 | 4 | skipped | skipped |  | 439.5 | 442.1 | 8151 | 13292 |
-| Windows arm64 | `windows-11-arm` | Windows-11-10.0.26200-SP0 / ARM64 | 4 | 1605 | 5353 | [result](https://browser.geekbench.com/v6/cpu/18511190) | 381.8 | 133.9 | 5695 | 594 |
-| Windows x64 | `windows-2022` | Windows-2022Server-10.0.20348-SP0 / AMD64 | 4 | 1465 | 3397 | [result](https://browser.geekbench.com/v6/cpu/18511195) | 439.3 | 442.1 | 7216 | 11797 |
-| macOS arm64 | `macos-26` | macOS-26.4-arm64-arm-64bit / arm64 | 3 | 2349 | 5566 | [result](https://browser.geekbench.com/v6/cpu/18511182) | 7366.9 | 4376.1 | 26655 | 20646 |
-| macOS x64 | `macos-26-intel` | macOS-26.4-x86_64-i386-64bit / x86_64 | 4 | known_issue | known_issue |  | 1508.1 | 1319.6 | 3791 | 5555 |
+| Linux arm64 | `ubuntu-22.04-arm` | Linux-6.8.0-1059-azure-aarch64-with-glibc2.35 / aarch64 | 4 | 1642 | 5420 | [result](https://browser.geekbench.com/v6/cpu/18511286) | 441.6 | 154.6 | 7270 | 790 |
+| Linux x64 | `ubuntu-22.04` | Linux-6.8.0-1059-azure-x86_64-with-glibc2.35 / x86_64 | 4 | 1543 | 3588 | [result](https://browser.geekbench.com/v6/cpu/18511293) | 442.5 | 443.9 | 7259 | 12644 |
+| Linux x86 | `ubuntu-22.04` | Linux-6.8.0-1059-azure-x86_64-with-glibc2.36 / x86_64 | 4 | skipped | skipped |  | 442.7 | 444.4 | 6614 | 11024 |
+| Windows arm64 | `windows-11-arm` | Windows-11-10.0.26200-SP0 / ARM64 | 4 | 1646 | 5447 | [result](https://browser.geekbench.com/v6/cpu/18511290) | 442.5 | 165.9 | 6109 | 996 |
+| Windows x64 | `windows-2022` | Windows-2022Server-10.0.20348-SP0 / AMD64 | 4 | 1957 | 4445 | [result](https://browser.geekbench.com/v6/cpu/18511289) | 537.5 | 267.7 | 9995 | 19233 |
+| macOS arm64 | `macos-26` | macOS-26.4-arm64-arm-64bit / arm64 | 3 | 2041 | 3805 | [result](https://browser.geekbench.com/v6/cpu/18511288) | 4491.2 | 2639.2 | 10170 | 13655 |
+| macOS x64 | `macos-15-intel` | macOS-15.7.7-x86_64-i386-64bit / x86_64 | 4 | known_issue | known_issue |  | 1544.5 | 631.3 | 2790 | 7507 |
 <!-- BENCHMARK_RESULTS_END -->
