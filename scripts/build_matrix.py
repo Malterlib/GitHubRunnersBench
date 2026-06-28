@@ -55,7 +55,7 @@ ROWS = [
         "display": "macOS x64",
         "platform": "macOS",
         "arch": "x64",
-        "runner": "macos-26-intel",
+        "runner": "macos-15-intel",
         "build_in_container": False,
         "container_image": "",
         "container_platform": "",

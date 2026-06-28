@@ -16,7 +16,7 @@ The workflow runs:
 | Linux arm64 | `ubuntu-22.04-arm` | Uses Geekbench Linux ARM preview build. |
 | Linux x86 | `ubuntu-22.04` | Runs disk tests inside the same Debian 12 `linux/386` container target used by the LLVM workflow. Geekbench is skipped because Geekbench 6 has no 32-bit Linux x86 build. |
 | macOS arm64 | `macos-26` | Native host benchmark. |
-| macOS x64 | `macos-26-intel` | Native host benchmark. |
+| macOS x64 | `macos-15-intel` | Native host benchmark. |
 | Windows x64 | `windows-2022` | Native host benchmark. |
 | Windows arm64 | `windows-11-arm` | Native host benchmark. |
 
